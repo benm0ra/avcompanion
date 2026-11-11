@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AVcompanion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>AVcompanion</h1>
+    <span id="route" class="pill">Stopped</span>
+  </header>
+
+  <section>
+    <label for="input">Microphone</label>
+    <select id="input"></select>
+    <label for="output">Send to (virtual cable)</label>
+    <select id="output"></select>
+    <p id="hint" class="hint"></p>
+    <div class="row">
+      <button id="start">Start</button>
+      <button id="stop" class="secondary">Stop</button>
+      <button id="refresh" class="secondary">Refresh devices</button>
+    </div>
+    <p id="error" class="error"></p>
+  </section>
+
+  <section>
+    <button id="mute" class="mute live">LIVE</button>
+    <div class="meter"><div id="bar"></div></div>
+    <div class="row spread">
+      <span id="peak">-inf dBFS</span>
+      <span id="clip" class="clip">CLIP</span>
+    </div>
+    <label for="gain">Gain <span id="gainval">0.0 dB</span></label>
+    <input id="gain" type="range" min="-6000" max="2400" step="10" value="0">
+    <button id="unity" class="secondary small">Reset to 0 dB</button>
+  </section>
+
+  <footer>
+    <div>Hotkeys: Ctrl+Shift+M mute · hold Ctrl+Alt+Space to talk</div>
+    <div>Stream Deck link: <span id="port">starting</span> · Dropouts: <span id="xruns">0</span></div>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

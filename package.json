@@ -1,0 +1,22 @@
+{
+  "name": "avcompanion",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "AVcompanion desktop app and Stream Deck plugin",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "test": "npm run test:core && npm run test:plugin",
+    "test:core": "cargo test --manifest-path src-tauri/Cargo.toml -p av-core",
+    "test:plugin": "node --test plugin/test/plugin.test.js",
+    "plugin:link": "streamdeck link plugin/com.avcompanion.control.sdPlugin",
+    "plugin:validate": "streamdeck validate plugin/com.avcompanion.control.sdPlugin",
+    "plugin:pack": "node scripts/release.mjs --plugin-only",
+    "release": "node scripts/release.mjs"
+  },
+  "devDependencies": {
+    "@elgato/cli": "^1.7.0",
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

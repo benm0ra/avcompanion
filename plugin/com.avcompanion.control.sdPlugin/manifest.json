@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "UUID": "com.avcompanion.control",
+  "Name": "AVcompanion",
+  "Version": "0.1.0.0",
+  "Author": "AVcompanion",
+  "Description": "Mute and mic gain for AVcompanion. Keys and dials always show the app's real state.",
+  "Category": "AVcompanion",
+  "CategoryIcon": "imgs/category",
+  "Icon": "imgs/plugin",
+  "SDKVersion": 2,
+  "CodePath": "bin/plugin.js",
+  "Nodejs": { "Version": "24" },
+  "Software": { "MinimumVersion": "7.1" },
+  "OS": [
+    { "Platform": "windows", "MinimumVersion": "10" },
+    { "Platform": "mac", "MinimumVersion": "13" }
+  ],
+  "Actions": [
+    {
+      "UUID": "com.avcompanion.control.mute",
+      "Name": "Mic Mute",
+      "Icon": "imgs/action-mute",
+      "Tooltip": "Mute or unmute the microphone in AVcompanion.",
+      "Controllers": ["Keypad"],
+      "DisableAutomaticStates": true,
+      "UserTitleEnabled": false,
+      "States": [
+        { "Image": "imgs/key-live", "Name": "Live" },
+        { "Image": "imgs/key-muted", "Name": "Muted" }
+      ]
+    },
+    {
+      "UUID": "com.avcompanion.control.gain",
+      "Name": "Mic Gain",
+      "Icon": "imgs/action-gain",
+      "Tooltip": "Turn to adjust gain, press to mute, tap the screen to reset to 0 dB.",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Adjust gain (hold for fine steps)",
+          "Push": "Mute / unmute",
+          "Touch": "Reset to 0 dB"
+        }
+      },
+      "States": [{ "Image": "imgs/key-live" }]
+    }
+  ]
+}

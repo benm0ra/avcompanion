@@ -1,0 +1,30 @@
+[package]
+name = "avcompanion"
+version = "0.1.0"
+description = "AVcompanion: mic routing, gain and mute control for Zoom with Stream Deck integration"
+edition = "2021"
+license = "MIT"
+
+[workspace]
+members = ["crates/av-core"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+av-core = { path = "crates/av-core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["net", "sync", "time", "macros", "rt"] }
+# 0.24 keeps Message::Text(String); newer versions changed the payload type.
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+cpal = "0.15"
+getrandom = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = "thin"

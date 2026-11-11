@@ -1,0 +1,8 @@
+[package]
+name = "av-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "AVcompanion real-time audio core: control state, lock-free ring, drift correction, gain and soft clip. No OS or Tauri dependencies."
+
+[dependencies]
