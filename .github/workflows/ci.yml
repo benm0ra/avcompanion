@@ -66,3 +66,26 @@ jobs:
           name: AVcompanion-windows-msi
           path: src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
+
+  macos-dmg:
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build universal app and disk image (Apple silicon + Intel)
+        run: npx tauri build --target universal-apple-darwin -- --locked
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AVcompanion-macos-dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error

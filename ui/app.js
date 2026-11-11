@@ -3,6 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const $ = (id) => document.getElementById(id);
 
 let draggingGain = false;
+let caps = { os: "windows", direct_mode: true, zoom_remote: true };
 const mode = () => document.querySelector('input[name="mode"]:checked').value;
 
 function fill(select, names, preferred) {
@@ -33,16 +34,24 @@ async function refreshMode() {
   const cable = mode() === "cable";
   $("cableBox").hidden = !cable;
   $("hint").textContent = cable
-    ? "In Zoom, choose the cable's output (for VB-CABLE: \"CABLE Output\") as your microphone."
+    ? caps.os === "macos"
+      ? "In Zoom, choose the same virtual cable (\"VB-Cable\" or \"BlackHole 2ch\") as your microphone."
+      : "In Zoom, choose the cable's output (for VB-CABLE: \"CABLE Output\") as your microphone."
     : "Zoom keeps using this microphone. In Zoom's audio settings, turn off \"Automatically adjust microphone volume\".";
   if (!cable) return;
   try {
     const vb = await invoke("vbcable_status");
     $("vbBox").hidden = vb.installed;
     $("vbInstall").hidden = !vb.bundled;
-    $("vbNote").textContent = vb.bundled
-      ? "Windows will ask for administrator approval, then VB-Audio's setup opens. Restart the PC if it asks, then press Refresh devices."
-      : "Download it from www.vb-cable.com, install it, then press Refresh devices.";
+    if (caps.os === "macos") {
+      $("vbTitle").innerHTML = "<b>No virtual audio cable found.</b> Full processing needs one.";
+      $("vbNote").textContent =
+        "Install VB-CABLE for Mac (www.vb-cable.com) or BlackHole 2ch, then press Refresh devices. In Zoom, choose that same device as your microphone.";
+    } else {
+      $("vbNote").textContent = vb.bundled
+        ? "Windows will ask for administrator approval, then VB-Audio's setup opens. Restart the PC if it asks, then press Refresh devices."
+        : "Download it from www.vb-cable.com, install it, then press Refresh devices.";
+    }
   } catch (_) {
     $("vbBox").hidden = true;
   }
@@ -150,5 +159,22 @@ $("zPause").addEventListener("click", () => zoom("zoom.share.pause"));
 $("zWindow").addEventListener("click", () => zoom("zoom.share.window", { match: $("zMatch").value, sound: $("zSound").checked }));
 $("zDiag").addEventListener("click", () => zoom("zoom.diagnostics"));
 
-refreshDevices();
-setInterval(poll, 60);
+async function init() {
+  try {
+    caps = await invoke("platform");
+  } catch (_) {
+    /* keep defaults */
+  }
+  if (!caps.direct_mode) {
+    // Direct mode is not written for this system yet: start in full processing.
+    const direct = document.querySelector('input[name="mode"][value="direct"]');
+    direct.disabled = true;
+    document.querySelector('input[name="mode"][value="cable"]').checked = true;
+    $("directNote").textContent = "Not available on this system yet.";
+  }
+  $("zoomBox").hidden = !caps.zoom_remote;
+  $("zoomOff").hidden = caps.zoom_remote;
+  await refreshDevices();
+  setInterval(poll, 60);
+}
+init();

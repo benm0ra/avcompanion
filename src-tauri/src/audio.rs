@@ -10,9 +10,16 @@ use std::sync::{mpsc, Arc, Mutex};
 use av_core::{meter_block, pipeline, ControlState, SAMPLE_RATE};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-/// Substrings that identify virtual-cable endpoints.
-const VIRTUAL_CAPTURE_SIDE: [&str; 2] = ["CABLE Output", "BlackHole"];
-const VIRTUAL_RENDER_SIDE: [&str; 2] = ["CABLE Input", "BlackHole"];
+/// Lower-case substrings that identify virtual-cable endpoints.
+/// Windows VB-CABLE: "CABLE Input" / "CABLE Output". macOS: "BlackHole 2ch" or
+/// "VB-Cable", each a single device that is both an output and an input.
+const VIRTUAL_CAPTURE_SIDE: [&str; 3] = ["cable output", "blackhole", "vb-cable"];
+const VIRTUAL_RENDER_SIDE: [&str; 3] = ["cable input", "blackhole", "vb-cable"];
+
+fn is_virtual(name: &str, side: &[&str]) -> bool {
+    let n = name.to_lowercase();
+    side.iter().any(|v| n.contains(v))
+}
 
 #[derive(Clone, Default, serde::Serialize)]
 pub struct DeviceList {
@@ -72,16 +79,14 @@ pub fn list_devices() -> Result<DeviceList, String> {
     for d in host.input_devices().map_err(|e| e.to_string())? {
         if let Ok(name) = d.name() {
             // Never offer the cable's own capture side as a source: that is a feedback loop.
-            if !VIRTUAL_CAPTURE_SIDE.iter().any(|v| name.contains(v)) {
+            if !is_virtual(&name, &VIRTUAL_CAPTURE_SIDE) {
                 list.inputs.push(name);
             }
         }
     }
     for d in host.output_devices().map_err(|e| e.to_string())? {
         if let Ok(name) = d.name() {
-            if list.suggested_output.is_none()
-                && VIRTUAL_RENDER_SIDE.iter().any(|v| name.contains(v))
-            {
+            if list.suggested_output.is_none() && is_virtual(&name, &VIRTUAL_RENDER_SIDE) {
                 list.suggested_output = Some(name.clone());
             }
             list.outputs.push(name);
@@ -174,7 +179,7 @@ fn check_format(
 ) -> Result<(), String> {
     if need_48k && cfg.sample_rate().0 != SAMPLE_RATE {
         return Err(format!(
-            "\"{name}\" is set to {} Hz. Set its default format to 48000 Hz in the system sound settings, then press Start again.",
+            "\"{name}\" is set to {} Hz. Set its format to 48000 Hz (Windows: Sound settings; macOS: Audio MIDI Setup), then press Start again.",
             cfg.sample_rate().0
         ));
     }

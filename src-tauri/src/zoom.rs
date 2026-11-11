@@ -16,6 +16,7 @@
 use serde_json::Value;
 
 /// Names this module looks for in Zoom. Override any of them in `zoom.json`.
+#[cfg_attr(not(windows), allow(dead_code))]
 #[derive(Clone, serde::Deserialize)]
 #[serde(default)]
 pub struct ZoomStrings {
@@ -37,6 +38,7 @@ impl Default for ZoomStrings {
     }
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 impl ZoomStrings {
     pub fn load() -> Self {
         let path = crate::daemon::discovery_dir().join("zoom.json");
@@ -522,6 +524,7 @@ mod imp {
 }
 
 #[cfg(not(windows))]
+#[allow(dead_code)]
 mod imp {
     const MSG: &str = "Zoom remote control is only available on Windows in this build.";
 

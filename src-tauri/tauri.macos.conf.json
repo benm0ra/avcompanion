@@ -1,9 +1,13 @@
 {
   "bundle": {
-    "targets": ["dmg", "app"],
+    "targets": [
+      "dmg",
+      "app"
+    ],
     "macOS": {
       "minimumSystemVersion": "13.0",
-      "entitlements": "entitlements.plist"
+      "entitlements": "entitlements.plist",
+      "signingIdentity": "-"
     }
   }
 }

@@ -14,7 +14,7 @@
   <section>
     <div class="modes">
       <label class="mode"><input type="radio" name="mode" value="direct" checked>
-        <span><b>Direct</b><small>Works right away. Controls your microphone's own level and mute.</small></span></label>
+        <span><b>Direct</b><small id="directNote">Works right away. Controls your microphone's own level and mute.</small></span></label>
       <label class="mode"><input type="radio" name="mode" value="cable">
         <span><b>Full processing</b><small>Adds the soft clipper and click-free mute. Needs a virtual audio cable.</small></span></label>
     </div>
@@ -26,7 +26,7 @@
       <label for="output">Send to (virtual cable)</label>
       <select id="output"></select>
       <div id="vbBox" class="vb" hidden>
-        <p><b>VB-CABLE is not installed.</b> Full processing needs it.</p>
+        <p id="vbTitle"><b>VB-CABLE is not installed.</b> Full processing needs it.</p>
         <p>VB-CABLE Virtual Audio Device is made by VB-Audio (www.vb-cable.com). VB-CABLE is a donationware, all participations are welcome.</p>
         <button id="vbInstall">Install VB-CABLE</button>
         <p id="vbNote" class="hint"></p>
@@ -54,7 +54,7 @@
     <button id="unity" class="secondary small">Reset to 0 dB</button>
   </section>
 
-  <section>
+  <section id="zoomBox">
     <h2>Zoom remote</h2>
     <div class="row wrap">
       <button id="zShare" class="secondary">Share / stop</button>
@@ -69,6 +69,11 @@
     </div>
     <p id="zMsg" class="hint"></p>
     <p class="dim">Zoom is brought to the front and its own shortcuts are pressed (Alt+S, Alt+T). One-touch stops at Zoom's share window if it does not find exactly one match.</p>
+  </section>
+
+  <section id="zoomOff" hidden>
+    <h2>Zoom remote</h2>
+    <p class="dim">Not available on this system yet. Use Zoom's own share controls.</p>
   </section>
 
   <footer>

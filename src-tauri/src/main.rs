@@ -39,6 +39,16 @@ fn sc_ptt() -> Shortcut {
     Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space)
 }
 
+/// What this build can do on this operating system, so the UI only offers what works.
+#[tauri::command]
+fn platform() -> Value {
+    json!({
+        "os": std::env::consts::OS,
+        "direct_mode": cfg!(windows),
+        "zoom_remote": cfg!(windows),
+    })
+}
+
 #[tauri::command(async)]
 fn list_devices() -> Result<audio::DeviceList, String> {
     audio::list_devices()
@@ -218,6 +228,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            platform,
             list_devices,
             start_audio,
             stop_audio,
