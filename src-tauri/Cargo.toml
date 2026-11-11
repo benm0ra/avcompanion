@@ -23,7 +23,7 @@ tokio = { version = "1", features = ["net", "sync", "time", "macros", "rt"] }
 tokio-tungstenite = "0.24"
 futures-util = "0.3"
 cpal = "0.15"
-getrandom = "0.2"
+getrandom = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 # Direct mode (endpoint level/mute) and launching the VB-CABLE setup with elevation.
