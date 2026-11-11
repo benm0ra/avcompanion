@@ -12,7 +12,7 @@ Please report vulnerabilities privately through GitHub's "Report a vulnerability
 
 ## Control daemon threat model
 
-The daemon lets a local client change mute and gain. It carries no audio.
+The daemon lets a local client change mute and gain and use the Zoom remote. It carries no audio.
 
 | Threat | Mitigation |
 | --- | --- |
@@ -33,6 +33,13 @@ Out of scope: a program already running as your user account can read `daemon.js
 ## Direct mode
 
 Direct mode changes the level and mute of the microphone you select, through the standard Windows audio API. It needs no administrator rights and opens no extra sockets. On stop or exit the microphone's original mute state is restored.
+
+## Zoom remote
+
+- The app sends key presses to Zoom and operates Zoom's share window through the standard Windows accessibility API. It does not inject code into Zoom or read its memory.
+- A local client that holds the daemon token can therefore start, stop or pause a Zoom screen share, not only change mute and gain. The token, origin check and limits above apply unchanged.
+- One-touch sharing only proceeds when exactly one window title matches, so it cannot silently share a different window.
+- "Save Zoom diagnostics" writes the names of Zoom's on-screen controls, including the titles of windows offered for sharing, to a local file. Nothing is sent anywhere.
 
 ## Known limitations
 
