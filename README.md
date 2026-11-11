@@ -49,6 +49,18 @@ Full processing: choose that mode, install VB-CABLE from the button if it is mis
 
 When the app stops or exits in direct mode it puts the microphone's mute back the way it found it.
 
+## macOS (early build)
+
+CI also builds a universal disk image (Apple silicon and Intel): artifact `AVcompanion-macos-dmg`. It compiles and bundles; it has not been run on a Mac yet.
+
+What works on macOS in this build: full processing mode, the hotkeys, the meter, and the Stream Deck mute key and gain dial. Direct mode and the Zoom remote are Windows-only for now and are shown as unavailable.
+
+1. Install a virtual audio cable: VB-CABLE for Mac (www.vb-cable.com) or BlackHole 2ch. Set it and your microphone to 48000 Hz in Audio MIDI Setup.
+2. Open the disk image and drag AVcompanion to Applications.
+3. The app is not signed with an Apple Developer ID, so macOS blocks the first launch. Open System Settings, Privacy & Security, scroll to the message about AVcompanion and choose Open Anyway. (Or run `xattr -dr com.apple.quarantine /Applications/AVcompanion.app` in Terminal.)
+4. Allow microphone access when macOS asks.
+5. In the app choose your microphone and the virtual cable, press Start. In Zoom choose the same virtual cable as the microphone.
+
 ## Building it yourself (Windows 10/11)
 
 Not needed to use the app; CI builds the installer.
@@ -105,6 +117,7 @@ scripts/release.mjs         one-command build of both artifacts
 
 ## Known gaps
 
+- macOS builds are unsigned (ad-hoc signature only) and untested.
 - Direct mode is Windows-only so far, and its range and step size are whatever the microphone's driver offers. Some microphones move in coarse steps, so fine dial steps may do nothing.
 - Direct mode has no soft clipper and no fade; mute is the operating system's own.
 - Full processing needs devices already at 48 kHz; there is no resampler fallback yet.

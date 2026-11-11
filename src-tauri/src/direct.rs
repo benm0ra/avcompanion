@@ -12,6 +12,7 @@ use crate::daemon::Shared;
 
 enum Cmd {
     Attach {
+        #[cfg_attr(not(windows), allow(dead_code))]
         name: String,
         reply: mpsc::Sender<Result<(), String>>,
     },

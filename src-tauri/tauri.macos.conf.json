@@ -9,5 +9,6 @@
       "entitlements": "entitlements.plist",
       "signingIdentity": "-"
     }
-  }
+  },
+  "identifier": "com.avcompanion.desktop"
 }
