@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**"]
   pull_request:
 
 # The workflow only reads the repository. It holds no secrets.
@@ -38,6 +38,22 @@ jobs:
       - name: Validate Stream Deck plugin
         run: npx streamdeck validate plugin/com.avcompanion.control.sdPlugin
         continue-on-error: true
+      - name: Fetch VB-CABLE driver pack (optional add-on, unmodified)
+        shell: pwsh
+        run: |
+          $url = "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack46.zip"
+          Invoke-WebRequest $url -OutFile vbcable.zip
+          $hash = (Get-FileHash vbcable.zip -Algorithm SHA256).Hash.ToLower()
+          Write-Host "VB-CABLE pack sha256: $hash"
+          $pin = (Get-Content src-tauri/vendor/vbcable.sha256 -Raw).Trim().ToLower()
+          if ($pin -eq "unpinned") {
+            Write-Host "::warning::VB-CABLE pack hash is not pinned yet"
+          } elseif ($pin -ne $hash) {
+            throw "VB-CABLE pack does not match the pinned SHA-256 ($pin). Refusing to bundle it."
+          }
+          Expand-Archive vbcable.zip -DestinationPath src-tauri/vendor/vbcable -Force
+          Remove-Item vbcable.zip
+          Get-ChildItem -Recurse src-tauri/vendor/vbcable | ForEach-Object { $_.FullName }
       - name: Build installer
         run: npx tauri build
       - uses: actions/upload-artifact@v4

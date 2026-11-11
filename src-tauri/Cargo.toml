@@ -25,6 +25,21 @@ futures-util = "0.3"
 cpal = "0.15"
 getrandom = "0.2"
 
+[target.'cfg(windows)'.dependencies]
+# Direct mode (endpoint level/mute) and launching the VB-CABLE setup with elevation.
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Variant",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [profile.release]
 opt-level = 3
 lto = "thin"

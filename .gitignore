@@ -3,3 +3,6 @@ src-tauri/target/
 src-tauri/gen/
 plugin/dist/
 *.streamDeckPlugin
+# VB-Audio's driver pack is fetched at build time, never committed.
+src-tauri/vendor/vbcable/*
+!src-tauri/vendor/vbcable/ABOUT.txt

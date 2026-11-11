@@ -3,6 +3,7 @@ const { invoke } = window.__TAURI__.core;
 const $ = (id) => document.getElementById(id);
 
 let draggingGain = false;
+const mode = () => document.querySelector('input[name="mode"]:checked').value;
 
 function fill(select, names, preferred) {
   const keep = select.value;
@@ -21,19 +22,38 @@ async function refreshDevices() {
     const d = await invoke("list_devices");
     fill($("input"), d.inputs, d.default_input);
     fill($("output"), d.outputs, d.suggested_output);
-    $("hint").textContent = d.suggested_output
-      ? ""
-      : "No virtual cable found. Install VB-Cable (Windows) or BlackHole (macOS), then refresh.";
     $("error").textContent = "";
   } catch (e) {
     $("error").textContent = String(e);
+  }
+  await refreshMode();
+}
+
+async function refreshMode() {
+  const cable = mode() === "cable";
+  $("cableBox").hidden = !cable;
+  $("hint").textContent = cable
+    ? "In Zoom, choose the cable's output (for VB-CABLE: \"CABLE Output\") as your microphone."
+    : "Zoom keeps using this microphone. In Zoom's audio settings, turn off \"Automatically adjust microphone volume\".";
+  if (!cable) return;
+  try {
+    const vb = await invoke("vbcable_status");
+    $("vbBox").hidden = vb.installed;
+    $("vbInstall").hidden = !vb.bundled;
+    $("vbNote").textContent = vb.bundled
+      ? "Windows will ask for administrator approval, then VB-Audio's setup opens. Restart the PC if it asks, then press Refresh devices."
+      : "Download it from www.vb-cable.com, install it, then press Refresh devices.";
+  } catch (_) {
+    $("vbBox").hidden = true;
   }
 }
 
 async function start() {
   $("error").textContent = "";
   try {
-    await invoke("start_audio", { input: $("input").value, output: $("output").value });
+    const args = { mode: mode(), input: $("input").value, output: null };
+    if (args.mode === "cable") args.output = $("output").value || null;
+    await invoke("start_audio", args);
   } catch (e) {
     $("error").textContent = String(e);
   }
@@ -46,7 +66,7 @@ function render(s) {
     pill.className = "pill bad";
     $("error").textContent = "An audio device was disconnected or reconfigured. Press Start to reconnect.";
   } else if (s.route.running) {
-    pill.textContent = "Running";
+    pill.textContent = s.mode === "direct" ? "Running · direct" : "Running · full processing";
     pill.className = "pill ok";
   } else {
     pill.textContent = "Stopped";
@@ -63,8 +83,13 @@ function render(s) {
   $("peak").textContent = s.peak_dbfs <= -119 ? "-inf dBFS" : s.peak_dbfs.toFixed(1) + " dBFS";
   $("clip").className = "clip" + (s.clip ? " on" : "");
 
-  if (!draggingGain) $("gain").value = s.gain_cdb;
+  const g = $("gain");
+  g.min = s.gain_min_cdb;
+  g.max = s.gain_max_cdb;
+  if (!draggingGain) g.value = s.gain_cdb;
   $("gainval").textContent = (s.gain_cdb / 100).toFixed(1) + " dB";
+  // 0 dB is outside some microphones' range in direct mode.
+  $("unity").hidden = s.gain_min_cdb > 0 || s.gain_max_cdb < 0;
   $("port").textContent = s.daemon_port ? "127.0.0.1:" + s.daemon_port : "starting";
   $("xruns").textContent = s.xruns;
 }
@@ -80,6 +105,14 @@ async function poll() {
 $("start").addEventListener("click", start);
 $("stop").addEventListener("click", () => invoke("stop_audio"));
 $("refresh").addEventListener("click", refreshDevices);
+for (const r of document.querySelectorAll('input[name="mode"]')) r.addEventListener("change", refreshMode);
+$("vbInstall").addEventListener("click", async () => {
+  try {
+    await invoke("install_vbcable");
+  } catch (e) {
+    $("error").textContent = String(e);
+  }
+});
 $("mute").addEventListener("click", async () => {
   const s = await invoke("get_state");
   await invoke("set_mute", { on: !s.mute });

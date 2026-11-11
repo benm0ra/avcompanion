@@ -1,0 +1,12 @@
+VB-CABLE Virtual Audio Device is a product of VB-Audio Software.
+Origin: www.vb-cable.com
+
+VB-CABLE is a donationware, all participations are welcome.
+
+Release builds of AVcompanion place VB-Audio's driver pack in this folder,
+unmodified, so the app can offer it as an optional add-on. The pack itself is
+not stored in this source repository: the build downloads it from VB-Audio and
+checks it against the SHA-256 recorded in ../vbcable.sha256.
+
+AVcompanion never installs it silently. You press "Install VB-CABLE", Windows
+asks for administrator approval, and VB-Audio's own setup window opens.

@@ -57,9 +57,14 @@ function parseArgs(argv) {
   return out;
 }
 
-function gainPct(cdb) {
-  const c = Math.max(GAIN_MIN_CDB, Math.min(GAIN_MAX_CDB, cdb));
-  return Math.round(((c - GAIN_MIN_CDB) / (GAIN_MAX_CDB - GAIN_MIN_CDB)) * 100);
+/** Position of `cdb` within the reachable range, 0-100. The app reports the range; direct mode narrows it to the microphone's own. */
+function gainPct(cdb, min = GAIN_MIN_CDB, max = GAIN_MAX_CDB) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    min = GAIN_MIN_CDB;
+    max = GAIN_MAX_CDB;
+  }
+  const c = Math.max(min, Math.min(max, cdb));
+  return Math.round(((c - min) / (max - min)) * 100);
 }
 
 function gainLabel(cdb) {
@@ -245,7 +250,7 @@ class Plugin {
         ? {
             title: s.effective === "live" ? "Mic gain" : "MUTED",
             value: gainLabel(s.gain_cdb),
-            indicator: { value: gainPct(s.gain_cdb) },
+            indicator: { value: gainPct(s.gain_cdb, s.gain_min_cdb, s.gain_max_cdb) },
           }
         : { title: "App offline", value: "--", indicator: { value: 0 } };
       this.sd({ event: "setFeedback", context, payload });

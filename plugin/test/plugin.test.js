@@ -40,6 +40,8 @@ test("helpers", () => {
   assert.equal(P.gainPct(2400), 100);
   assert.equal(P.gainPct(99999), 100);
   assert.equal(P.gainPct(0), 71);
+  assert.equal(P.gainPct(600, -1200, 1200), 75, "uses the range the app reports");
+  assert.equal(P.gainPct(0, 5, 5), 71, "falls back on a nonsense range");
   assert.equal(P.gainLabel(-600), "-6.0 dB");
   assert.equal(P.gainLabel(150), "+1.5 dB");
   assert.deepEqual(P.parseArgs(["-port", "123", "-pluginUUID", "abc", "-registerEvent", "reg", "-info", "{}"]), {

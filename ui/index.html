@@ -12,10 +12,27 @@
   </header>
 
   <section>
+    <div class="modes">
+      <label class="mode"><input type="radio" name="mode" value="direct" checked>
+        <span><b>Direct</b><small>Works right away. Controls your microphone's own level and mute.</small></span></label>
+      <label class="mode"><input type="radio" name="mode" value="cable">
+        <span><b>Full processing</b><small>Adds the soft clipper and click-free mute. Needs a virtual audio cable.</small></span></label>
+    </div>
+
     <label for="input">Microphone</label>
     <select id="input"></select>
-    <label for="output">Send to (virtual cable)</label>
-    <select id="output"></select>
+
+    <div id="cableBox" hidden>
+      <label for="output">Send to (virtual cable)</label>
+      <select id="output"></select>
+      <div id="vbBox" class="vb" hidden>
+        <p><b>VB-CABLE is not installed.</b> Full processing needs it.</p>
+        <p>VB-CABLE Virtual Audio Device is made by VB-Audio (www.vb-cable.com). VB-CABLE is a donationware, all participations are welcome.</p>
+        <button id="vbInstall">Install VB-CABLE</button>
+        <p id="vbNote" class="hint"></p>
+      </div>
+    </div>
+
     <p id="hint" class="hint"></p>
     <div class="row">
       <button id="start">Start</button>

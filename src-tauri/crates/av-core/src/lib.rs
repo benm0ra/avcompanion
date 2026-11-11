@@ -363,6 +363,22 @@ impl RenderProcessor {
     }
 }
 
+/// Direct mode: the app does not sit in the audio path, it only meters the
+/// microphone. Runs inside a capture callback.
+pub fn meter_block(input: &[f32], ctl: &ControlState) {
+    let mut peak = 0.0f32;
+    for s in input {
+        let a = s.abs();
+        if a > peak {
+            peak = a;
+        }
+    }
+    ctl.peak_bits.fetch_max(peak.to_bits(), Relaxed);
+    if peak >= CLIP_CEIL {
+        ctl.clipped.store(true, Relaxed);
+    }
+}
+
 /// Build a matched capture/render pair around one ring.
 pub fn pipeline(ctl: Arc<ControlState>) -> (CaptureProcessor, RenderProcessor) {
     let (p, c) = ring(16_384);
@@ -578,6 +594,16 @@ mod tests {
             ren.process(&mut out, 1);
         }
         assert!(out.iter().all(|s| s.abs() <= CLIP_CEIL));
+        assert!(ctl.clipped.load(Relaxed));
+    }
+
+    #[test]
+    fn meter_block_tracks_peak_and_clip() {
+        let ctl = ControlState::default();
+        meter_block(&[0.1, -0.4, 0.2], &ctl);
+        assert!(!ctl.clipped.load(Relaxed));
+        assert!((ctl.take_peak() - 0.4).abs() < 1e-6);
+        meter_block(&[0.0, 1.0], &ctl);
         assert!(ctl.clipped.load(Relaxed));
     }
 

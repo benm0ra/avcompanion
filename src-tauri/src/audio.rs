@@ -7,7 +7,7 @@
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{mpsc, Arc, Mutex};
 
-use av_core::{pipeline, ControlState, SAMPLE_RATE};
+use av_core::{meter_block, pipeline, ControlState, SAMPLE_RATE};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 /// Substrings that identify virtual-cable endpoints.
@@ -34,7 +34,8 @@ pub struct RouteStatus {
 enum Cmd {
     Start {
         input: String,
-        output: String,
+        /// `None` is direct mode: meter the microphone only, no routing.
+        output: Option<String>,
         reply: mpsc::Sender<Result<(), String>>,
     },
     Stop,
@@ -48,7 +49,7 @@ pub struct AudioHandle {
 }
 
 impl AudioHandle {
-    pub fn start(&self, input: String, output: String) -> Result<(), String> {
+    pub fn start(&self, input: String, output: Option<String>) -> Result<(), String> {
         let (reply, rx) = mpsc::channel();
         self.tx
             .send(Cmd::Start {
@@ -93,6 +94,13 @@ pub fn list_devices() -> Result<DeviceList, String> {
     Ok(list)
 }
 
+/// True when a virtual cable's render side is present.
+pub fn cable_present() -> bool {
+    list_devices()
+        .map(|d| d.suggested_output.is_some())
+        .unwrap_or(false)
+}
+
 pub fn spawn_supervisor(ctl: Arc<ControlState>) -> AudioHandle {
     let (tx, rx) = mpsc::channel::<Cmd>();
     let status = Arc::new(Mutex::new(RouteStatus::default()));
@@ -102,7 +110,7 @@ pub fn spawn_supervisor(ctl: Arc<ControlState>) -> AudioHandle {
     std::thread::Builder::new()
         .name("audio-supervisor".into())
         .spawn(move || {
-            let mut streams: Option<(cpal::Stream, cpal::Stream)> = None;
+            let mut streams: Option<(cpal::Stream, Option<cpal::Stream>)> = None;
             while let Ok(cmd) = rx.recv() {
                 match cmd {
                     Cmd::Start {
@@ -113,7 +121,7 @@ pub fn spawn_supervisor(ctl: Arc<ControlState>) -> AudioHandle {
                         // Drop the old streams before opening new ones.
                         streams = None;
                         lo.store(false, Relaxed);
-                        let result = open(&input, &output, ctl.clone(), lo.clone());
+                        let result = open(&input, output.as_deref(), ctl.clone(), lo.clone());
                         let mut s = st.lock().unwrap();
                         match result {
                             Ok(pair) => {
@@ -121,7 +129,7 @@ pub fn spawn_supervisor(ctl: Arc<ControlState>) -> AudioHandle {
                                 *s = RouteStatus {
                                     running: true,
                                     input: Some(input),
-                                    output: Some(output),
+                                    output,
                                     error: None,
                                 };
                                 let _ = reply.send(Ok(()));
@@ -159,8 +167,12 @@ fn find_device(
     devices.find(|d| d.name().map(|n| n == name).unwrap_or(false))
 }
 
-fn check_format(name: &str, cfg: &cpal::SupportedStreamConfig) -> Result<(), String> {
-    if cfg.sample_rate().0 != SAMPLE_RATE {
+fn check_format(
+    name: &str,
+    cfg: &cpal::SupportedStreamConfig,
+    need_48k: bool,
+) -> Result<(), String> {
+    if need_48k && cfg.sample_rate().0 != SAMPLE_RATE {
         return Err(format!(
             "\"{name}\" is set to {} Hz. Set its default format to 48000 Hz in the system sound settings, then press Start again.",
             cfg.sample_rate().0
@@ -177,31 +189,45 @@ fn check_format(name: &str, cfg: &cpal::SupportedStreamConfig) -> Result<(), Str
 
 fn open(
     input: &str,
-    output: &str,
+    output: Option<&str>,
     ctl: Arc<ControlState>,
     lost: Arc<AtomicBool>,
-) -> Result<(cpal::Stream, cpal::Stream), String> {
+) -> Result<(cpal::Stream, Option<cpal::Stream>), String> {
     let host = cpal::default_host();
     let in_dev = find_device(host.input_devices().map_err(|e| e.to_string())?, input)
         .ok_or_else(|| format!("input device \"{input}\" not found"))?;
+    let in_cfg = in_dev.default_input_config().map_err(|e| e.to_string())?;
+    let in_ch = in_cfg.channels() as usize;
+    let in_stream_cfg: cpal::StreamConfig = in_cfg.config();
+    let lost_in = lost.clone();
+
+    // Direct mode: Zoom keeps using the real microphone. We only listen for the meter.
+    let Some(output) = output else {
+        check_format(input, &in_cfg, false)?;
+        let in_stream = in_dev
+            .build_input_stream(
+                &in_stream_cfg,
+                move |data: &[f32], _: &cpal::InputCallbackInfo| meter_block(data, &ctl),
+                move |_err| lost_in.store(true, Relaxed),
+                None,
+            )
+            .map_err(|e| format!("could not open \"{input}\": {e}"))?;
+        in_stream.play().map_err(|e| e.to_string())?;
+        return Ok((in_stream, None));
+    };
+
     let out_dev = find_device(host.output_devices().map_err(|e| e.to_string())?, output)
         .ok_or_else(|| format!("output device \"{output}\" not found"))?;
-
-    let in_cfg = in_dev.default_input_config().map_err(|e| e.to_string())?;
     let out_cfg = out_dev.default_output_config().map_err(|e| e.to_string())?;
-    check_format(input, &in_cfg)?;
-    check_format(output, &out_cfg)?;
-
-    let in_ch = in_cfg.channels() as usize;
+    check_format(input, &in_cfg, true)?;
+    check_format(output, &out_cfg, true)?;
     let out_ch = out_cfg.channels() as usize;
-    let in_stream_cfg: cpal::StreamConfig = in_cfg.config();
     let out_stream_cfg: cpal::StreamConfig = out_cfg.config();
 
     // Fresh ring and processors for every start: never resume a stale ring.
     ctl.capture_block.store(0, Relaxed);
     let (mut cap, mut ren) = pipeline(ctl);
 
-    let lost_in = lost.clone();
     let in_stream = in_dev
         .build_input_stream(
             &in_stream_cfg,
@@ -223,5 +249,5 @@ fn open(
 
     in_stream.play().map_err(|e| e.to_string())?;
     out_stream.play().map_err(|e| e.to_string())?;
-    Ok((in_stream, out_stream))
+    Ok((in_stream, Some(out_stream)))
 }
