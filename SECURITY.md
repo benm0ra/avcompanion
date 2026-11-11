@@ -24,6 +24,16 @@ The daemon lets a local client change mute and gain. It carries no audio.
 
 Out of scope: a program already running as your user account can read `daemon.json` and control mute and gain. Such a program can already do far more than that, so the token is not designed to stop it.
 
+## Bundled VB-CABLE setup
+
+- The build downloads VB-Audio's driver pack over HTTPS and refuses to bundle it unless it matches the SHA-256 in `src-tauri/vendor/vbcable.sha256`.
+- The setup program is only started when the user presses "Install VB-CABLE". Windows shows its own administrator prompt, and VB-Audio's setup window opens. The app itself never runs elevated.
+- The setup is launched from the app's install folder, which standard users cannot modify.
+
+## Direct mode
+
+Direct mode changes the level and mute of the microphone you select, through the standard Windows audio API. It needs no administrator rights and opens no extra sockets. On stop or exit the microphone's original mute state is restored.
+
 ## Known limitations
 
 - Release builds are not yet code-signed, so Windows SmartScreen will warn on install.
