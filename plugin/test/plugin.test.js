@@ -69,12 +69,12 @@ test("daemon link: hello with token, state marks ready, commands carry ids", () 
   link.connect();
   const ws = FakeWS.last;
   assert.equal(ws.url, "ws://127.0.0.1:8990");
-  assert.equal(link.cmd("mute.toggle"), false, "no commands before the daemon answers");
+  assert.equal(link.cmd("mute.toggle"), 0, "no commands before the daemon answers");
   ws.onopen();
   assert.deepEqual(ws.sent[0], { t: "hello", proto: 1, token: "tok", client: "streamdeck" });
   ws.onmessage({ data: JSON.stringify(STATE) });
   assert.equal(states.length, 1);
-  assert.equal(link.cmd("gain.nudge", { ticks: 2 }), true);
+  assert.equal(link.cmd("gain.nudge", { ticks: 2 }), 1);
   assert.deepEqual(ws.sent[1], { t: "cmd", id: 1, name: "gain.nudge", ticks: 2 });
   link.cmd("mute.toggle");
   assert.equal(ws.sent[2].id, 2);
@@ -105,7 +105,7 @@ test("daemon link: reconnects with backoff and re-reads discovery", () => {
   port = 8991;
   FakeWS.last.onclose();
   assert.equal(states.at(-1), null, "plugin is told the link dropped");
-  assert.equal(link.cmd("mute.toggle"), false);
+  assert.equal(link.cmd("mute.toggle"), 0);
   assert.equal(t.q[0].ms, 250, "backoff resets after a good connection");
   t.q.shift().fn();
   assert.equal(FakeWS.last.url, "ws://127.0.0.1:8991");
@@ -117,9 +117,9 @@ function harness(connected = true) {
   const t = fakeTimers();
   const daemon = {
     cmd: (name, extra) => {
-      if (!connected) return false;
+      if (!connected) return 0;
       cmds.push({ name, ...extra });
-      return true;
+      return cmds.length;
     },
   };
   const plugin = new P.Plugin((m) => sd.push(m), daemon, t);
@@ -228,4 +228,46 @@ test("plugin: dial press mutes, touch resets gain", () => {
   plugin.onSdEvent({ event: "dialDown", action: P.ACTION_GAIN, context: "d1" });
   plugin.onSdEvent({ event: "touchTap", action: P.ACTION_GAIN, context: "d1" });
   assert.deepEqual(cmds, [{ name: "mute.toggle" }, { name: "gain.set", cdb: 0 }]);
+});
+
+test("zoom share key: mode comes from the key's settings", () => {
+  const { cmds, plugin } = harness();
+  const press = (settings) =>
+    plugin.onSdEvent({ event: "keyUp", action: P.ACTION_ZOOM, context: "z1", payload: { settings } });
+  press({});
+  press({ mode: "pause" });
+  press({ mode: "toggle" });
+  press({ mode: "window", match: "Google Chrome", sound: true });
+  press({ mode: "window", match: "Slides" });
+  press({ mode: "window", match: "Notes", sound: false });
+  assert.deepEqual(cmds, [
+    { name: "zoom.share.open" },
+    { name: "zoom.share.pause" },
+    { name: "zoom.share.toggle" },
+    { name: "zoom.share.window", match: "Google Chrome", sound: true },
+    { name: "zoom.share.window", match: "Slides", sound: true },
+    { name: "zoom.share.window", match: "Notes", sound: false },
+  ]);
+});
+
+test("zoom share key: shows the result of the command on the key", () => {
+  const { sd, plugin } = harness();
+  plugin.onSdEvent({ event: "keyUp", action: P.ACTION_ZOOM, context: "z1", payload: { settings: {} } });
+  plugin.onSdEvent({ event: "keyUp", action: P.ACTION_ZOOM, context: "z2", payload: { settings: { mode: "pause" } } });
+  assert.equal(sd.length, 0, "nothing shown until the app answers");
+  plugin.onDaemonAck({ t: "ack", id: 2, ok: false, err: "Zoom does not seem to be open." });
+  plugin.onDaemonAck({ t: "ack", id: 1, ok: true });
+  assert.deepEqual(sd, [
+    { event: "showAlert", context: "z2" },
+    { event: "showOk", context: "z1" },
+  ]);
+  plugin.onDaemonAck({ t: "ack", id: 1, ok: true });
+  plugin.onDaemonAck({ t: "ack", id: 99, ok: false });
+  assert.equal(sd.length, 2, "results for other commands are ignored");
+});
+
+test("zoom share key: alert straight away when the app is offline", () => {
+  const { sd, plugin } = harness(false);
+  plugin.onSdEvent({ event: "keyUp", action: P.ACTION_ZOOM, context: "z1", payload: { settings: {} } });
+  assert.deepEqual(sd, [{ event: "showAlert", context: "z1" }]);
 });

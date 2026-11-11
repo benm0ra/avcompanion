@@ -54,6 +54,23 @@
     <button id="unity" class="secondary small">Reset to 0 dB</button>
   </section>
 
+  <section>
+    <h2>Zoom remote</h2>
+    <div class="row wrap">
+      <button id="zShare" class="secondary">Share / stop</button>
+      <button id="zPause" class="secondary">Pause / resume</button>
+    </div>
+    <label for="zMatch">One-touch: share the window whose title contains</label>
+    <input id="zMatch" type="text" placeholder="e.g. Google Chrome" spellcheck="false">
+    <label class="check"><input id="zSound" type="checkbox" checked> Share its sound</label>
+    <div class="row wrap">
+      <button id="zWindow">Share it now</button>
+      <button id="zDiag" class="secondary small">Save Zoom diagnostics</button>
+    </div>
+    <p id="zMsg" class="hint"></p>
+    <p class="dim">Zoom is brought to the front and its own shortcuts are pressed (Alt+S, Alt+T). One-touch stops at Zoom's share window if it does not find exactly one match.</p>
+  </section>
+
   <footer>
     <div>Hotkeys: Ctrl+Shift+M mute · hold Ctrl+Alt+Space to talk</div>
     <div>Stream Deck link: <span id="port">starting</span> · Dropouts: <span id="xruns">0</span></div>

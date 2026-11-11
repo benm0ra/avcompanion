@@ -4,17 +4,27 @@
   "Name": "AVcompanion",
   "Version": "0.1.0.0",
   "Author": "AVcompanion",
-  "Description": "Mute and mic gain for AVcompanion. Keys and dials always show the app's real state.",
+  "Description": "Mute, mic gain and Zoom screen-share keys for AVcompanion. Keys and dials always show the app's real state.",
   "Category": "AVcompanion",
   "CategoryIcon": "imgs/category",
   "Icon": "imgs/plugin",
   "SDKVersion": 2,
   "CodePath": "bin/plugin.js",
-  "Nodejs": { "Version": "24" },
-  "Software": { "MinimumVersion": "7.1" },
+  "Nodejs": {
+    "Version": "24"
+  },
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
   "OS": [
-    { "Platform": "windows", "MinimumVersion": "10" },
-    { "Platform": "mac", "MinimumVersion": "13" }
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "13"
+    }
   ],
   "Actions": [
     {
@@ -22,12 +32,20 @@
       "Name": "Mic Mute",
       "Icon": "imgs/action-mute",
       "Tooltip": "Mute or unmute the microphone in AVcompanion.",
-      "Controllers": ["Keypad"],
+      "Controllers": [
+        "Keypad"
+      ],
       "DisableAutomaticStates": true,
       "UserTitleEnabled": false,
       "States": [
-        { "Image": "imgs/key-live", "Name": "Live" },
-        { "Image": "imgs/key-muted", "Name": "Muted" }
+        {
+          "Image": "imgs/key-live",
+          "Name": "Live"
+        },
+        {
+          "Image": "imgs/key-muted",
+          "Name": "Muted"
+        }
       ]
     },
     {
@@ -35,7 +53,9 @@
       "Name": "Mic Gain",
       "Icon": "imgs/action-gain",
       "Tooltip": "Turn to adjust gain, press to mute, tap the screen to reset to 0 dB.",
-      "Controllers": ["Encoder"],
+      "Controllers": [
+        "Encoder"
+      ],
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
@@ -44,7 +64,26 @@
           "Touch": "Reset to 0 dB"
         }
       },
-      "States": [{ "Image": "imgs/key-live" }]
+      "States": [
+        {
+          "Image": "imgs/key-live"
+        }
+      ]
+    },
+    {
+      "UUID": "com.avcompanion.control.zoomshare",
+      "Name": "Zoom Share",
+      "Icon": "imgs/action-share",
+      "Tooltip": "Share, stop or pause your Zoom screen share, or share one chosen app with its sound.",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "pi/zoomshare.html",
+      "States": [
+        {
+          "Image": "imgs/key-share"
+        }
+      ]
     }
   ]
 }

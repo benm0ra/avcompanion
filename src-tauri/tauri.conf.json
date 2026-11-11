@@ -13,8 +13,10 @@
         "label": "main",
         "title": "AVcompanion",
         "width": 440,
-        "height": 720,
-        "resizable": false
+        "height": 760,
+        "resizable": true,
+        "minWidth": 420,
+        "minHeight": 480
       }
     ],
     "security": {

@@ -18,6 +18,7 @@ const os = require("node:os");
 
 const ACTION_MUTE = "com.avcompanion.control.mute";
 const ACTION_GAIN = "com.avcompanion.control.gain";
+const ACTION_ZOOM = "com.avcompanion.control.zoomshare";
 const PROTO = 1;
 const GAIN_MIN_CDB = -6000;
 const GAIN_MAX_CDB = 2400;
@@ -107,6 +108,7 @@ class DaemonLink {
     this.readDiscovery = opts.readDiscovery || readDiscovery;
     this.setTimeout = opts.setTimeout || setTimeout;
     this.onState = opts.onState || (() => {});
+    this.onAck = opts.onAck || (() => {});
     this.ws = null;
     this.ready = false;
     this.backoff = BACKOFF_MIN_MS;
@@ -140,6 +142,8 @@ class DaemonLink {
         this.ready = true;
         this.backoff = BACKOFF_MIN_MS;
         this.onState(m);
+      } else if (m.t === "ack") {
+        this.onAck(m);
       }
     };
     ws.onerror = () => {};
@@ -160,11 +164,12 @@ class DaemonLink {
     this.setTimeout(() => this.connect(), wait);
   }
 
-  /** Returns false when the app is not connected; the caller shows an alert. */
+  /** Returns the command id, or 0 when the app is not connected (the caller shows an alert). */
   cmd(name, extra) {
-    if (!this.ready || !this.ws) return false;
-    this.ws.send(JSON.stringify({ t: "cmd", id: this.nextId++, name, ...extra }));
-    return true;
+    if (!this.ready || !this.ws) return 0;
+    const id = this.nextId++;
+    this.ws.send(JSON.stringify({ t: "cmd", id, name, ...extra }));
+    return id;
   }
 
   stop() {
@@ -188,6 +193,7 @@ class Plugin {
     this.drawn = new Map(); // context -> last payload sent, as JSON
     this.state = null; // last daemon state frame, or null when offline
     this.pending = { coarse: 0, fine: 0, timer: null };
+    this.waiting = new Map(); // command id -> context that should show the result
   }
 
   /** Handle one event from the Stream Deck app. */
@@ -204,6 +210,7 @@ class Plugin {
         break;
       case "keyUp":
         if (m.action === ACTION_MUTE) this.send(m.context, "mute.toggle");
+        else if (m.action === ACTION_ZOOM) this.zoomShare(m.context, (m.payload && m.payload.settings) || {});
         break;
       case "dialDown":
         if (m.action === ACTION_GAIN) this.send(m.context, "mute.toggle");
@@ -220,7 +227,34 @@ class Plugin {
   }
 
   send(context, name, extra) {
-    if (!this.daemon.cmd(name, extra)) this.sd({ event: "showAlert", context });
+    const id = this.daemon.cmd(name, extra);
+    if (!id) this.sd({ event: "showAlert", context });
+    return id;
+  }
+
+  /** The Zoom Share key. What it does is chosen in the key's settings. */
+  zoomShare(context, settings) {
+    const mode = settings.mode || "open";
+    let id;
+    if (mode === "window") {
+      id = this.send(context, "zoom.share.window", { match: String(settings.match || ""), sound: settings.sound !== false });
+    } else if (mode === "pause") {
+      id = this.send(context, "zoom.share.pause");
+    } else if (mode === "toggle") {
+      id = this.send(context, "zoom.share.toggle");
+    } else {
+      id = this.send(context, "zoom.share.open");
+    }
+    // Zoom commands can fail (not in a meeting, no matching window): show the outcome on the key.
+    if (id) this.waiting.set(id, context);
+  }
+
+  /** Called with every command result from the app. */
+  onDaemonAck(ack) {
+    const context = this.waiting.get(ack.id);
+    if (context === undefined) return;
+    this.waiting.delete(ack.id);
+    this.sd({ event: ack.ok ? "showOk" : "showAlert", context });
   }
 
   /** Sum ticks over a short window so a fast spin becomes one command. */
@@ -281,7 +315,10 @@ function main() {
   const sdSend = (obj) => {
     if (sd.readyState === 1) sd.send(JSON.stringify(obj));
   };
-  const daemon = new DaemonLink({ onState: (s) => plugin.onDaemonState(s) });
+  const daemon = new DaemonLink({
+    onState: (s) => plugin.onDaemonState(s),
+    onAck: (a) => plugin.onDaemonAck(a),
+  });
   const plugin = new Plugin(sdSend, daemon);
 
   sd.onopen = () => {
@@ -305,6 +342,7 @@ if (require.main === module) main();
 module.exports = {
   ACTION_MUTE,
   ACTION_GAIN,
+  ACTION_ZOOM,
   KEY_IMG,
   DaemonLink,
   Plugin,

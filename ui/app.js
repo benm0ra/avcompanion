@@ -121,5 +121,34 @@ $("gain").addEventListener("pointerup", () => (draggingGain = false));
 $("gain").addEventListener("input", (e) => invoke("set_gain", { cdb: Number(e.target.value) }));
 $("unity").addEventListener("click", () => invoke("set_gain", { cdb: 0 }));
 
+// ---- Zoom remote
+async function zoom(name, args) {
+  const msg = $("zMsg");
+  msg.textContent = "Working...";
+  msg.className = "hint";
+  try {
+    msg.textContent = await invoke("zoom_command", { name, args: args || null });
+  } catch (e) {
+    msg.textContent = String(e);
+    msg.className = "error";
+  }
+}
+function remember(id, key, prop) {
+  const el = $(id);
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved !== null) el[prop] = prop === "checked" ? saved === "1" : saved;
+    el.addEventListener("change", () => localStorage.setItem(key, prop === "checked" ? (el.checked ? "1" : "0") : el.value));
+  } catch (_) {
+    /* storage unavailable: the fields just start empty */
+  }
+}
+remember("zMatch", "zoom.match", "value");
+remember("zSound", "zoom.sound", "checked");
+$("zShare").addEventListener("click", () => zoom("zoom.share.open"));
+$("zPause").addEventListener("click", () => zoom("zoom.share.pause"));
+$("zWindow").addEventListener("click", () => zoom("zoom.share.window", { match: $("zMatch").value, sound: $("zSound").checked }));
+$("zDiag").addEventListener("click", () => zoom("zoom.diagnostics"));
+
 refreshDevices();
 setInterval(poll, 60);

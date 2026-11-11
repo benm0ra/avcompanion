@@ -120,9 +120,6 @@ impl Shared {
                 self.ctl
                     .set_gain_cdb(cdb.clamp(i32::MIN as i64, i32::MAX as i64) as i32);
             }
-            n if n.starts_with("zoom.") => {
-                return Err("zoom bridge is not available in this build".into());
-            }
             other => return Err(format!("unknown command \"{other}\"")),
         }
         self.bump();
@@ -273,9 +270,20 @@ async fn serve(stream: TcpStream, shared: Arc<Shared>, token: Arc<String>) -> Re
                     let reply = match serde_json::from_str::<Value>(&t) {
                         Ok(v) if v["t"] == "cmd" => {
                             let id = v["id"].clone();
-                            match shared.apply(v["name"].as_str().unwrap_or(""), &v) {
-                                Ok(()) => json!({ "t": "ack", "id": id, "ok": true }),
-                                Err(e) => json!({ "t": "ack", "id": id, "ok": false, "err": e }),
+                            let name = v["name"].as_str().unwrap_or("").to_string();
+                            if name.starts_with("zoom.") {
+                                // Zoom commands press keys and wait for windows: keep them off the async workers.
+                                let done = tokio::task::spawn_blocking(move || crate::zoom::command(&name, &v)).await;
+                                match done {
+                                    Ok(Ok(msg)) => json!({ "t": "ack", "id": id, "ok": true, "msg": msg }),
+                                    Ok(Err(e)) => json!({ "t": "ack", "id": id, "ok": false, "err": e }),
+                                    Err(_) => json!({ "t": "ack", "id": id, "ok": false, "err": "Zoom command failed unexpectedly" }),
+                                }
+                            } else {
+                                match shared.apply(&name, &v) {
+                                    Ok(()) => json!({ "t": "ack", "id": id, "ok": true }),
+                                    Err(e) => json!({ "t": "ack", "id": id, "ok": false, "err": e }),
+                                }
                             }
                         }
                         _ => json!({ "t": "ack", "id": Value::Null, "ok": false, "err": "expected a cmd frame" }),

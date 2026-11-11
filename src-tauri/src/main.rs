@@ -5,6 +5,7 @@ mod audio;
 mod daemon;
 mod direct;
 mod vbcable;
+mod zoom;
 
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Arc;
@@ -153,6 +154,12 @@ fn install_vbcable(app: tauri::AppHandle) -> Result<(), String> {
     vbcable::launch_setup(&exe)
 }
 
+/// Zoom remote control: share, stop, pause, one-touch window share, diagnostics.
+#[tauri::command(async)]
+fn zoom_command(name: String, args: Option<Value>) -> Result<String, String> {
+    zoom::command(&name, &args.unwrap_or(Value::Null))
+}
+
 fn main() {
     let ctl = Arc::new(ControlState::default());
     let shared = daemon::Shared::new(ctl.clone());
@@ -219,7 +226,8 @@ fn main() {
             toggle_mute,
             get_state,
             vbcable_status,
-            install_vbcable
+            install_vbcable,
+            zoom_command
         ])
         .build(tauri::generate_context!())
         .expect("error while building AVcompanion");

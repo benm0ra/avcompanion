@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Zoom Share</title>
+  <style>
+    body { font: 12px/1.4 system-ui, "Segoe UI", sans-serif; color: #d8d8d8; background: #2d2d2d; margin: 0; padding: 10px; }
+    label { display: block; margin: 10px 0 4px; color: #9a9a9a; }
+    select, input[type=text] { width: 100%; box-sizing: border-box; background: #3d3d3d; color: #e6e6e6; border: 1px solid #555; border-radius: 3px; padding: 5px; }
+    .check { display: flex; gap: 6px; align-items: center; color: #d8d8d8; }
+    .note { color: #9a9a9a; margin-top: 10px; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <label for="mode">When pressed</label>
+  <select id="mode">
+    <option value="open">Open Zoom's share window, or stop sharing</option>
+    <option value="window">Share one app or window straight away</option>
+    <option value="pause">Pause or resume sharing</option>
+    <option value="toggle">Start or stop a new share</option>
+  </select>
+  <div id="windowBox" hidden>
+    <label for="match">Window title contains</label>
+    <input id="match" type="text" placeholder="e.g. Google Chrome" spellcheck="false">
+    <label class="check"><input id="sound" type="checkbox" checked> Share its sound</label>
+    <p class="note">If no window, or more than one, matches, Zoom's share window is left open for you to choose.</p>
+  </div>
+  <p class="note">AVcompanion brings Zoom to the front and presses Zoom's own shortcuts. The key flashes a tick or a warning with the result.</p>
+  <script src="zoomshare.js"></script>
+</body>
+</html>
