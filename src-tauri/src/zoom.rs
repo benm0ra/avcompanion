@@ -24,6 +24,8 @@ pub struct ZoomStrings {
     pub process: String,
     /// The share window is the Zoom window containing a control whose name contains one of these.
     pub sound_checkbox: Vec<String>,
+    /// Zoom's box that favours smooth motion for video (it also softens text).
+    pub optimize_checkbox: Vec<String>,
     /// Exact name (case-insensitive) of the button that starts the share.
     pub share_button: Vec<String>,
 }
@@ -33,6 +35,10 @@ impl Default for ZoomStrings {
         Self {
             process: "Zoom.exe".into(),
             sound_checkbox: vec!["Share sound".into(), "Share computer sound".into()],
+            optimize_checkbox: vec![
+                "Optimize for video clip".into(),
+                "Optimize Screen Sharing for Video Clip".into(),
+            ],
             share_button: vec!["Share".into()],
         }
     }
@@ -61,7 +67,10 @@ pub fn command(name: &str, args: &Value) -> Result<String, String> {
             if wanted.is_empty() {
                 return Err("Say which app or window to share (part of its title).".into());
             }
-            imp::share_window(wanted, args["sound"].as_bool().unwrap_or(false))
+            let optimize = args["optimize"].as_bool().unwrap_or(false);
+            // Zoom ticks "Share sound" itself when optimising for video, so the two go together.
+            let sound = optimize || args["sound"].as_bool().unwrap_or(true);
+            imp::share_window(wanted, sound, optimize)
         }
         "zoom.diagnostics" => imp::diagnostics(),
         other => Err(format!("unknown Zoom command \"{other}\"")),
@@ -367,7 +376,7 @@ mod imp {
 
     const LEFT_OPEN: &str = "Zoom's share window is open; finish there by hand.";
 
-    pub fn share_window(wanted: &str, sound: bool) -> Result<String, String> {
+    pub fn share_window(wanted: &str, sound: bool, optimize: bool) -> Result<String, String> {
         let strings = ZoomStrings::load();
         let uia = automation()?;
         press(Shortcut::ShareOpenOrStop, &strings)?;
@@ -383,6 +392,7 @@ mod imp {
             .filter(|n| {
                 n.name.to_lowercase().contains(&needle)
                     && !contains_any(&n.name, &strings.sound_checkbox)
+                    && !contains_any(&n.name, &strings.optimize_checkbox)
                     && !strings
                         .share_button
                         .iter()
@@ -441,6 +451,32 @@ mod imp {
             None => {}
         }
 
+        // Optimising is a quality preference, not a safety matter: if Zoom does not
+        // offer the box, carry on and say so.
+        let mut optimize_note = "";
+        let optimize_box = nodes
+            .iter()
+            .find(|n| contains_any(&n.name, &strings.optimize_checkbox));
+        match optimize_box {
+            Some(n) => match pattern::<IUIAutomationTogglePattern>(&n.el, UIA_TogglePatternId) {
+                Some(t) => unsafe {
+                    let on = t
+                        .CurrentToggleState()
+                        .map(|s| s == ToggleState_On)
+                        .unwrap_or(false);
+                    if on != optimize && t.Toggle().is_err() && optimize {
+                        optimize_note = " (could not turn on \"Optimize for video clip\")";
+                    }
+                },
+                None if optimize => {
+                    optimize_note = " (could not turn on \"Optimize for video clip\")"
+                }
+                None => {}
+            },
+            None if optimize => optimize_note = " (Zoom did not offer \"Optimize for video clip\")",
+            None => {}
+        }
+
         if !matches.iter().any(|n| activate(&n.el)) {
             return Err(format!(
                 "Found \"{chosen}\" but could not select it. {LEFT_OPEN}"
@@ -462,8 +498,13 @@ mod imp {
             ));
         }
         Ok(format!(
-            "Sharing \"{chosen}\"{}{sound_note}.",
-            if sound { " with sound" } else { "" }
+            "Sharing \"{chosen}\"{}{}{sound_note}{optimize_note}.",
+            if sound { " with sound" } else { "" },
+            if optimize && optimize_note.is_empty() {
+                ", optimised for video"
+            } else {
+                ""
+            }
         ))
     }
 
@@ -537,7 +578,7 @@ mod imp {
     pub fn shortcut(_s: Shortcut) -> Result<String, String> {
         Err(MSG.into())
     }
-    pub fn share_window(_wanted: &str, _sound: bool) -> Result<String, String> {
+    pub fn share_window(_wanted: &str, _sound: bool, _optimize: bool) -> Result<String, String> {
         Err(MSG.into())
     }
     pub fn diagnostics() -> Result<String, String> {

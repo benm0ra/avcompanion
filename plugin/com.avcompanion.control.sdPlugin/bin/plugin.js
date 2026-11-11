@@ -237,7 +237,11 @@ class Plugin {
     const mode = settings.mode || "open";
     let id;
     if (mode === "window") {
-      id = this.send(context, "zoom.share.window", { match: String(settings.match || ""), sound: settings.sound !== false });
+      id = this.send(context, "zoom.share.window", {
+        match: String(settings.match || ""),
+        sound: settings.sound !== false, // sound is shared unless the key's settings turn it off
+        optimize: settings.optimize === true,
+      });
     } else if (mode === "pause") {
       id = this.send(context, "zoom.share.pause");
     } else if (mode === "toggle") {

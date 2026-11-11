@@ -154,9 +154,10 @@ function remember(id, key, prop) {
 }
 remember("zMatch", "zoom.match", "value");
 remember("zSound", "zoom.sound", "checked");
+remember("zOptimize", "zoom.optimize", "checked");
 $("zShare").addEventListener("click", () => zoom("zoom.share.open"));
 $("zPause").addEventListener("click", () => zoom("zoom.share.pause"));
-$("zWindow").addEventListener("click", () => zoom("zoom.share.window", { match: $("zMatch").value, sound: $("zSound").checked }));
+$("zWindow").addEventListener("click", () => zoom("zoom.share.window", { match: $("zMatch").value, sound: $("zSound").checked, optimize: $("zOptimize").checked }));
 $("zDiag").addEventListener("click", () => zoom("zoom.diagnostics"));
 
 async function init() {

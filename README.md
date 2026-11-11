@@ -17,13 +17,15 @@ AVcompanion can drive Zoom's own screen sharing, from the app or from a "Zoom Sh
 | --- | --- |
 | Share / stop | Zoom's Alt+S: opens Zoom's share window, or stops the current share |
 | Pause / resume | Zoom's Alt+T |
-| One-touch share | Opens the share window, picks the one window whose title contains your text, sets "Share sound" as you chose, presses Share |
+| One-touch share | Opens the share window, picks the one window whose title contains your text, ticks "Share sound" (on unless you turn it off) and optionally "Optimize for video clip", presses Share |
 
 One-touch share never guesses. If no window or more than one window matches, or Zoom's share window looks different from what it expects, it stops and leaves the share window open for you. If a share is already running, Alt+S stops it first, because that is what Zoom's shortcut does.
 
 Requirements and limits:
 
 - Zoom's shortcuts must be at their defaults (Zoom settings, Keyboard Shortcuts).
+- For music, choose Stereo (high fidelity) once by hand: the small arrow beside "Share sound" in Zoom's share window. AVcompanion cannot reach that menu yet.
+- "Optimize for video clip" gives smoother motion but softens text, so it is off unless you tick it.
 - Sound sharing is per window as Zoom offers it; a browser shares the sound of the whole browser, not one tab.
 - The names it looks for ("Share sound", "Share") are English. Other languages, or a Zoom update that renames them, need a `zoom.json` override next to `daemon.json`. "Save Zoom diagnostics" writes what your Zoom exposes to `zoom-diagnostics.txt` in the same folder. That file lists the titles of your open windows, so read it before sending it to anyone.
 - Zoom running as administrator cannot be controlled.

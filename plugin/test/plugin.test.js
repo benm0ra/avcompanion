@@ -240,13 +240,15 @@ test("zoom share key: mode comes from the key's settings", () => {
   press({ mode: "window", match: "Google Chrome", sound: true });
   press({ mode: "window", match: "Slides" });
   press({ mode: "window", match: "Notes", sound: false });
+  press({ mode: "window", match: "YouTube", optimize: true });
   assert.deepEqual(cmds, [
     { name: "zoom.share.open" },
     { name: "zoom.share.pause" },
     { name: "zoom.share.toggle" },
-    { name: "zoom.share.window", match: "Google Chrome", sound: true },
-    { name: "zoom.share.window", match: "Slides", sound: true },
-    { name: "zoom.share.window", match: "Notes", sound: false },
+    { name: "zoom.share.window", match: "Google Chrome", sound: true, optimize: false },
+    { name: "zoom.share.window", match: "Slides", sound: true, optimize: false },
+    { name: "zoom.share.window", match: "Notes", sound: false, optimize: false },
+    { name: "zoom.share.window", match: "YouTube", sound: true, optimize: true },
   ]);
 });
 

@@ -8,13 +8,19 @@ let context = null;
 const el = (id) => document.getElementById(id);
 
 function readForm() {
-  return { mode: el("mode").value, match: el("match").value, sound: el("sound").checked };
+  return {
+    mode: el("mode").value,
+    match: el("match").value,
+    sound: el("sound").checked,
+    optimize: el("optimize").checked,
+  };
 }
 
 function showForm(settings) {
   el("mode").value = settings.mode || "open";
   el("match").value = settings.match || "";
   el("sound").checked = settings.sound !== false;
+  el("optimize").checked = settings.optimize === true;
   el("windowBox").hidden = el("mode").value !== "window";
 }
 
@@ -39,7 +45,7 @@ function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionI
   socket.onopen = () => socket.send(JSON.stringify({ event: registerEvent, uuid }));
 }
 
-for (const id of ["mode", "match", "sound"]) {
+for (const id of ["mode", "match", "sound", "optimize"]) {
   el(id).addEventListener("change", save);
   el(id).addEventListener("input", save);
 }
