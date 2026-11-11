@@ -37,5 +37,5 @@ Direct mode changes the level and mute of the microphone you select, through the
 ## Known limitations
 
 - Release builds are not yet code-signed, so Windows SmartScreen will warn on install.
-- Dependency lockfiles (`Cargo.lock`, `package-lock.json`) should be committed after the first successful build so that builds are reproducible.
+- Dependency versions are pinned by the committed lockfiles (`Cargo.lock`, `package-lock.json`), and CI builds refuse to run if they are out of date.
 - `daemon.json` is left in place when the app exits. Its token is useless once the app has stopped.

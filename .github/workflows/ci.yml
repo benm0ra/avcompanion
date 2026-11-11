@@ -23,7 +23,7 @@ jobs:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
       - name: Audio core tests
-        run: cargo test --manifest-path src-tauri/Cargo.toml -p av-core
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml -p av-core
       - name: Stream Deck plugin tests
         run: node --test plugin/test/plugin.test.js
 
@@ -39,7 +39,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - run: npm install
+      - run: npm ci
       - name: Validate Stream Deck plugin
         run: npx streamdeck validate plugin/com.avcompanion.control.sdPlugin
         continue-on-error: true
@@ -60,14 +60,9 @@ jobs:
           Remove-Item vbcable.zip
           Get-ChildItem -Recurse src-tauri/vendor/vbcable | ForEach-Object { $_.FullName }
       - name: Build installer
-        run: npx tauri build
+        run: npx tauri build -- --locked
       - uses: actions/upload-artifact@v7
         with:
           name: AVcompanion-windows-msi
           path: src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
-      - name: Print lockfiles (temporary)
-        shell: bash
-        run: |
-          gzip -c src-tauri/Cargo.lock | base64 -w 76 | sed 's/^/LOCKA:/'
-          gzip -c package-lock.json | base64 -w 76 | sed 's/^/LOCKB:/'
