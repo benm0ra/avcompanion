@@ -185,6 +185,7 @@ class Plugin {
     this.daemon = daemon;
     this.timers = timers;
     this.contexts = new Map(); // context -> action UUID
+    this.drawn = new Map(); // context -> last payload sent, as JSON
     this.state = null; // last daemon state frame, or null when offline
     this.pending = { coarse: 0, fine: 0, timer: null };
   }
@@ -194,10 +195,12 @@ class Plugin {
     switch (m.event) {
       case "willAppear":
         this.contexts.set(m.context, m.action);
+        this.drawn.delete(m.context); // a key that just appeared shows its manifest default
         this.draw(m.context, m.action);
         break;
       case "willDisappear":
         this.contexts.delete(m.context);
+        this.drawn.delete(m.context);
         break;
       case "keyUp":
         if (m.action === ACTION_MUTE) this.send(m.context, "mute.toggle");
@@ -240,11 +243,19 @@ class Plugin {
     for (const [context, action] of this.contexts) this.draw(context, action);
   }
 
+  /** Send `msg` unless this context already shows exactly that. A dial spin
+   *  changes gain many times a second; the mute key should not be redrawn for each. */
+  paint(context, signature, msg) {
+    if (this.drawn.get(context) === signature) return;
+    this.drawn.set(context, signature);
+    this.sd(msg);
+  }
+
   draw(context, action) {
     const s = this.state;
     if (action === ACTION_MUTE) {
       const key = s ? (KEY_IMG[s.effective] ? s.effective : "unverified") : "offline";
-      this.sd({ event: "setImage", context, payload: { image: KEY_IMG[key], target: 0 } });
+      this.paint(context, key, { event: "setImage", context, payload: { image: KEY_IMG[key], target: 0 } });
     } else if (action === ACTION_GAIN) {
       const payload = s
         ? {
@@ -253,7 +264,7 @@ class Plugin {
             indicator: { value: gainPct(s.gain_cdb, s.gain_min_cdb, s.gain_max_cdb) },
           }
         : { title: "App offline", value: "--", indicator: { value: 0 } };
-      this.sd({ event: "setFeedback", context, payload });
+      this.paint(context, JSON.stringify(payload), { event: "setFeedback", context, payload });
     }
   }
 }

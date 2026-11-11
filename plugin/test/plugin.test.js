@@ -151,13 +151,40 @@ test("plugin: key and dial draw from daemon state only", () => {
   plugin.onDaemonState({ ...STATE, effective: "zoom_muted" });
   assert.equal(sd[0].payload.image, P.KEY_IMG.zoom_muted);
   plugin.onDaemonState({ ...STATE, effective: "something-new" });
-  assert.equal(sd.at(-2).payload.image, P.KEY_IMG.unverified, "unknown values fall back to unverified");
+  assert.equal(
+    sd.filter((m) => m.event === "setImage").at(-1).payload.image,
+    P.KEY_IMG.unverified,
+    "unknown values fall back to unverified"
+  );
 
   plugin.onSdEvent({ event: "willDisappear", action: P.ACTION_MUTE, context: "k1" });
   sd.length = 0;
   plugin.onDaemonState(null);
   assert.equal(sd.length, 1, "only the dial is still visible");
   assert.equal(sd[0].payload.title, "App offline");
+});
+
+test("plugin: unchanged keys and dials are not redrawn", () => {
+  const { sd, plugin } = harness();
+  plugin.onSdEvent({ event: "willAppear", action: P.ACTION_MUTE, context: "k1" });
+  plugin.onSdEvent({ event: "willAppear", action: P.ACTION_GAIN, context: "d1" });
+  plugin.onDaemonState(STATE);
+  sd.length = 0;
+
+  plugin.onDaemonState({ ...STATE, seq: 2 });
+  assert.equal(sd.length, 0, "identical state draws nothing");
+
+  plugin.onDaemonState({ ...STATE, gain_cdb: -550 });
+  assert.deepEqual(sd.map((m) => m.event), ["setFeedback"], "a gain change redraws the dial only");
+  sd.length = 0;
+
+  plugin.onDaemonState({ ...STATE, gain_cdb: -550, mute: true, effective: "muted" });
+  assert.deepEqual(sd.map((m) => m.event), ["setImage", "setFeedback"]);
+  sd.length = 0;
+
+  // Stream Deck re-shows the key (page switch): it must be drawn again even though state is the same.
+  plugin.onSdEvent({ event: "willAppear", action: P.ACTION_MUTE, context: "k1" });
+  assert.deepEqual(sd.map((m) => m.event), ["setImage"]);
 });
 
 test("plugin: key press sends a command and never changes the key itself", () => {

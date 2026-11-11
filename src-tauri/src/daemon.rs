@@ -43,9 +43,6 @@ pub struct Shared {
     pub port: AtomicU32,
     /// True in direct mode (the app controls the real microphone's level and mute).
     pub direct: AtomicBool,
-    /// Gain range currently reachable, in centi-dB. Direct mode narrows it to the device's range.
-    pub gain_min: AtomicI32,
-    pub gain_max: AtomicI32,
 }
 
 impl Shared {
@@ -59,8 +56,6 @@ impl Shared {
             route_ok: AtomicBool::new(false),
             port: AtomicU32::new(0),
             direct: AtomicBool::new(true),
-            gain_min: AtomicI32::new(av_core::GAIN_MIN_CDB),
-            gain_max: AtomicI32::new(av_core::GAIN_MAX_CDB),
         })
     }
 
@@ -77,8 +72,8 @@ impl Shared {
             // Zoom bridge is not in this build, so the effective state is the app's own.
             "effective": if mute { "muted" } else { "live" },
             "gain_cdb": self.ctl.gain_cdb.load(Relaxed),
-            "gain_min_cdb": self.gain_min.load(Relaxed),
-            "gain_max_cdb": self.gain_max.load(Relaxed),
+            "gain_min_cdb": self.ctl.gain_min.load(Relaxed),
+            "gain_max_cdb": self.ctl.gain_max.load(Relaxed),
             "mode": if self.direct.load(Relaxed) { "direct" } else { "cable" },
             "zoom": { "meeting": false, "muted": false, "confidence": "none" },
             "route": if self.route_ok.load(Relaxed) { "ok" } else { "stopped" },

@@ -95,6 +95,8 @@ function render(s) {
 }
 
 async function poll() {
+  // A hidden or minimised window has nothing to draw.
+  if (document.hidden) return;
   try {
     render(await invoke("get_state"));
   } catch (_) {
@@ -113,10 +115,7 @@ $("vbInstall").addEventListener("click", async () => {
     $("error").textContent = String(e);
   }
 });
-$("mute").addEventListener("click", async () => {
-  const s = await invoke("get_state");
-  await invoke("set_mute", { on: !s.mute });
-});
+$("mute").addEventListener("click", () => invoke("toggle_mute"));
 $("gain").addEventListener("pointerdown", () => (draggingGain = true));
 $("gain").addEventListener("pointerup", () => (draggingGain = false));
 $("gain").addEventListener("input", (e) => invoke("set_gain", { cdb: Number(e.target.value) }));

@@ -4,11 +4,27 @@ updates:
     directory: /src-tauri
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    # Compatible updates arrive as one request. Major versions change APIs and
+    # break the build, so they are taken by hand.
+    groups:
+      rust-compatible:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      npm-compatible:
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

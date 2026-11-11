@@ -6,7 +6,7 @@ mod daemon;
 mod direct;
 mod vbcable;
 
-use std::sync::atomic::Ordering::Relaxed;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Arc;
 
 use av_core::{ControlState, GAIN_MAX_CDB, GAIN_MIN_CDB};
@@ -65,12 +65,14 @@ fn start_audio(
         }
         "cable" => match output {
             Some(output) => {
-                state.shared.direct.store(false, Relaxed);
-                state.shared.gain_min.store(GAIN_MIN_CDB, Relaxed);
-                state.shared.gain_max.store(GAIN_MAX_CDB, Relaxed);
-                // The app is now the only thing between mic and Zoom: start from unity, unmuted.
-                state.shared.ctl.set_gain_cdb(0);
-                state.shared.ctl.mute.store(false, Relaxed);
+                // Coming from direct mode the gain value meant "microphone level", which
+                // is a different scale: start full processing from unity, unmuted.
+                // Restarting full processing keeps the user's gain and mute.
+                if state.shared.direct.swap(false, Relaxed) {
+                    state.shared.ctl.set_gain_range(GAIN_MIN_CDB, GAIN_MAX_CDB);
+                    state.shared.ctl.set_gain_cdb(0);
+                    state.shared.ctl.mute.store(false, Relaxed);
+                }
                 state.audio.start(input, Some(output))
             }
             None => Err("choose the virtual cable to send audio to".to_string()),
@@ -100,6 +102,12 @@ fn set_mute(on: bool, state: tauri::State<'_, AppState>) {
 }
 
 #[tauri::command]
+fn toggle_mute(state: tauri::State<'_, AppState>) {
+    state.shared.ctl.toggle_mute();
+    state.shared.bump();
+}
+
+#[tauri::command]
 fn get_state(state: tauri::State<'_, AppState>) -> Value {
     let s = &state.shared;
     let route = state
@@ -112,8 +120,8 @@ fn get_state(state: tauri::State<'_, AppState>) -> Value {
         "mode": if s.direct.load(Relaxed) { "direct" } else { "cable" },
         "mute": s.ctl.mute.load(Relaxed),
         "gain_cdb": s.ctl.gain_cdb.load(Relaxed),
-        "gain_min_cdb": s.gain_min.load(Relaxed),
-        "gain_max_cdb": s.gain_max.load(Relaxed),
+        "gain_min_cdb": s.ctl.gain_min.load(Relaxed),
+        "gain_max_cdb": s.ctl.gain_max.load(Relaxed),
         "peak_dbfs": s.meter_cdb.load(Relaxed) as f64 / 100.0,
         "clip": s.clip.load(Relaxed),
         "xruns": s.ctl.xruns.load(Relaxed),
@@ -168,18 +176,23 @@ fn main() {
         })
         .setup(move |app| {
             let sh = setup_shared.clone();
+            // Keyboard auto-repeat can deliver "pressed" many times per second while a
+            // key is held. Act once per physical press, and only notify on a real change.
+            let toggle_held = AtomicBool::new(false);
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()
                     .with_handler(move |_app, shortcut, event| {
+                        let pressed = event.state() == ShortcutState::Pressed;
                         if shortcut == &sc_toggle() {
-                            if event.state() == ShortcutState::Pressed {
+                            if pressed != toggle_held.swap(pressed, Relaxed) && pressed {
                                 sh.ctl.toggle_mute();
                                 sh.bump();
                             }
                         } else if shortcut == &sc_ptt() {
-                            let held = event.state() == ShortcutState::Pressed;
-                            sh.ctl.mute.store(!held, Relaxed);
-                            sh.bump();
+                            let mute = !pressed;
+                            if sh.ctl.mute.swap(mute, Relaxed) != mute {
+                                sh.bump();
+                            }
                         }
                     })
                     .build(),
@@ -203,6 +216,7 @@ fn main() {
             stop_audio,
             set_gain,
             set_mute,
+            toggle_mute,
             get_state,
             vbcable_status,
             install_vbcable

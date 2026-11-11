@@ -20,6 +20,10 @@ pub struct ControlState {
     pub mute: AtomicBool,
     /// Gain in centi-dB (-600 = -6.0 dB). Writers clamp via `set_gain_cdb`.
     pub gain_cdb: AtomicI32,
+    /// Range `set_gain_cdb` clamps to. Full processing uses the fixed range;
+    /// direct mode narrows or widens it to what the microphone offers.
+    pub gain_min: AtomicI32,
+    pub gain_max: AtomicI32,
     /// Capture peak since last poll, as `f32::to_bits` (non-negative).
     pub peak_bits: AtomicU32,
     /// Set when the soft clipper engaged since last poll.
@@ -34,6 +38,8 @@ impl Default for ControlState {
         Self {
             mute: AtomicBool::new(false),
             gain_cdb: AtomicI32::new(0),
+            gain_min: AtomicI32::new(GAIN_MIN_CDB),
+            gain_max: AtomicI32::new(GAIN_MAX_CDB),
             peak_bits: AtomicU32::new(0),
             clipped: AtomicBool::new(false),
             xruns: AtomicU32::new(0),
@@ -44,9 +50,16 @@ impl Default for ControlState {
 
 impl ControlState {
     pub fn set_gain_cdb(&self, cdb: i32) -> i32 {
-        let c = cdb.clamp(GAIN_MIN_CDB, GAIN_MAX_CDB);
+        let (lo, hi) = (self.gain_min.load(Relaxed), self.gain_max.load(Relaxed));
+        let c = cdb.clamp(lo, hi.max(lo));
         self.gain_cdb.store(c, Relaxed);
         c
+    }
+    /// Change the reachable range and pull the current gain inside it.
+    pub fn set_gain_range(&self, min_cdb: i32, max_cdb: i32) {
+        self.gain_min.store(min_cdb, Relaxed);
+        self.gain_max.store(max_cdb.max(min_cdb), Relaxed);
+        self.set_gain_cdb(self.gain_cdb.load(Relaxed));
     }
     pub fn nudge_gain_cdb(&self, delta: i32) -> i32 {
         self.set_gain_cdb(self.gain_cdb.load(Relaxed).saturating_add(delta))
@@ -428,6 +441,28 @@ mod tests {
         assert_eq!(c.nudge_gain_cdb(-50), -50);
         assert!(c.toggle_mute());
         assert!(!c.toggle_mute());
+    }
+
+    #[test]
+    fn gain_range_follows_the_device() {
+        let c = ControlState::default();
+        // A microphone whose level runs from -96 dB to +30 dB.
+        c.set_gain_range(-9600, 3000);
+        assert_eq!(
+            c.set_gain_cdb(-8000),
+            -8000,
+            "below the fixed range is allowed"
+        );
+        assert_eq!(
+            c.nudge_gain_cdb(50),
+            -7950,
+            "a nudge must not jump to the old floor"
+        );
+        assert_eq!(c.set_gain_cdb(9999), 3000);
+        // Narrow range pulls the current value inside.
+        c.set_gain_range(-1700, 1200);
+        assert_eq!(c.gain_cdb.load(Relaxed), 1200);
+        assert_eq!(c.set_gain_cdb(-5000), -1700);
     }
 
     #[test]

@@ -72,9 +72,11 @@ mod imp {
         CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED, STGM_READ,
     };
 
-    /// How often the endpoint is written (when the app changed something)
-    /// or read (to notice changes made elsewhere).
+    /// How often app-side changes are written to the endpoint.
     const TICK: Duration = Duration::from_millis(25);
+    /// The endpoint is read back (to notice changes made elsewhere) every
+    /// this many ticks while nothing is being written: 10 times a second.
+    const READ_EVERY: u32 = 4;
 
     struct Endpoint {
         vol: IAudioEndpointVolume,
@@ -83,6 +85,7 @@ mod imp {
         applied_gain: i32,
         applied_mute: bool,
         original_mute: bool,
+        idle_ticks: u32,
     }
 
     impl Endpoint {
@@ -99,6 +102,7 @@ mod imp {
                 applied_gain: 0,
                 applied_mute: false,
                 original_mute: false,
+                idle_ticks: 0,
             };
             ep.applied_gain = ep.read_gain().map_err(|e| e.to_string())?;
             ep.applied_mute = ep.read_mute().map_err(|e| e.to_string())?;
@@ -121,6 +125,18 @@ mod imp {
 
             let asked = ctl.gain_cdb.load(Relaxed);
             let want = asked.clamp(self.min_cdb, self.max_cdb);
+            let want_mute = ctl.mute.load(Relaxed);
+
+            // Nothing to write: only poll the device every few ticks.
+            if want == self.applied_gain && want_mute == self.applied_mute {
+                self.idle_ticks += 1;
+                if self.idle_ticks % READ_EVERY != 0 {
+                    return Ok(false);
+                }
+            } else {
+                self.idle_ticks = 0;
+            }
+
             if want != self.applied_gain {
                 unsafe {
                     self.vol
@@ -139,7 +155,6 @@ mod imp {
                 changed = true;
             }
 
-            let want_mute = ctl.mute.load(Relaxed);
             if want_mute != self.applied_mute {
                 unsafe { self.vol.SetMute(BOOL::from(want_mute), std::ptr::null()) }?;
                 self.applied_mute = want_mute;
@@ -197,10 +212,9 @@ mod imp {
                     match Endpoint::open(&name) {
                         Ok(ep) => {
                             // Adopt the microphone as it is; never change it just by attaching.
+                            shared.ctl.set_gain_range(ep.min_cdb, ep.max_cdb);
                             shared.ctl.gain_cdb.store(ep.applied_gain, Relaxed);
                             shared.ctl.mute.store(ep.applied_mute, Relaxed);
-                            shared.gain_min.store(ep.min_cdb, Relaxed);
-                            shared.gain_max.store(ep.max_cdb, Relaxed);
                             endpoint = Some(ep);
                             shared.bump();
                             let _ = reply.send(Ok(()));
